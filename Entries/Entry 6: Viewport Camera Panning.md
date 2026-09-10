@@ -1,3 +1,4 @@
+Aug 7, 2026
 beta7
 #Added 2D camera panning capabilities, enabling users to translate the viewport laterally and navigate freely through the 3D graph space.
 Key Changes
