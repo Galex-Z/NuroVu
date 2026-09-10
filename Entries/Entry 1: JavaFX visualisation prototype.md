@@ -1,3 +1,4 @@
+Aug 7, 2026
 Beta2
 # Developed using Claude and Gemini assistance to prototype 3D force-directed node positioning, interactive camera controls, and dynamic node spawning in JavaFX.
 Claude's response and code is listed below:
