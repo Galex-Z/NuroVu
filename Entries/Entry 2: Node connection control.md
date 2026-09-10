@@ -1,6 +1,6 @@
 Aug 7, 2026
 Beta 3
-# starting out with 3 disconnected nodes and addint the option to mainually link them, but they started floating out of screen :\
+# starting out with 3 disconnected nodes and adding the option to manually link them, but they started floating out of screen :\
 Claude's response
 What changed and why
 1. Clean start — 3 disconnected seed nodes
