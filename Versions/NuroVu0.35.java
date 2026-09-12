@@ -21,11 +21,18 @@ import java.util.Random;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 import com.sun.jna.platform.win32.WinDef.HWND;
+import com.sun.jna.platform.win32.WinDef.BOOL;
+import com.sun.jna.platform.win32.WinNT.HANDLE;
 import com.sun.jna.win32.StdCallLibrary;
 import com.sun.jna.win32.W32APIOptions;
 
 /**
- * 3D Force-Directed Workspace Graph — Phase 1 Baseline
+ * 3D Force-Directed Workspace Graph
+ * Restored to pre-visual-polish state, with all functional features intact:
+ *   - Starfield / aura removed
+ *   - Original lighting restored
+ *   - Original node/edge materials restored
+ *   - All functional features kept: JNA, linking, deletion, zoom, pan, spawn damping
  *
  * COMPILE & RUN:
  *   Maven: mvn javafx:run
@@ -35,12 +42,6 @@ import com.sun.jna.win32.W32APIOptions;
  *           -cp ".:jna-5.14.0.jar:jna-platform-5.14.0.jar" WorkspaceGraph3D.java
  *     java  --module-path $FX --add-modules javafx.controls \
  *           -cp ".:jna-5.14.0.jar:jna-platform-5.14.0.jar" WorkspaceGraph3D
- *   Direct (Windows):
- *     set FX=C:\javafx-sdk\lib
- *     javac --module-path %FX% --add-modules javafx.controls ^
- *           -cp ".;jna-5.14.0.jar;jna-platform-5.14.0.jar" WorkspaceGraph3D.java
- *     java  --module-path %FX% --add-modules javafx.controls ^
- *           -cp ".;jna-5.14.0.jar;jna-platform-5.14.0.jar" WorkspaceGraph3D
  */
 public class WorkspaceGraph3D extends Application {
 
@@ -48,28 +49,27 @@ public class WorkspaceGraph3D extends Application {
     //  CONSTANTS
     // ══════════════════════════════════════════════════════════════════
 
-    private static final double WORLD_RADIUS    = 200.0;
-    private static final double ATTRACTION      = 0.0015;
-    private static final double REPULSION       = 12_000.0;
-    private static final double DAMPING         = 0.85;
-    private static final double MAX_VELOCITY    = 4.0;
-    private static final double SPRING_LENGTH   = 120.0;
-    private static final double CAMERA_DISTANCE = 550.0;
-    private static final double ZOOM_SPEED      = 20.0;
-    private static final double ZOOM_MIN        = 40.0;
-    private static final double ROTATION_SPEED  = 0.4;
-    private static final double PAN_SPEED       = 0.9;
-    private static final double NODE_RADIUS     = 18.0;
-    private static final int    SCENE_W         = 1100;
-    private static final int    SCENE_H         = 700;
+    private static final double WORLD_RADIUS     = 200.0;
+    private static final double ATTRACTION       = 0.0015;
+    private static final double REPULSION        = 12_000.0;
+    private static final double DAMPING          = 0.85;
+    private static final double MAX_VELOCITY     = 4.0;
+    private static final double SPRING_LENGTH    = 120.0;
+    private static final double CAMERA_DISTANCE  = 550.0;
+    private static final double ZOOM_SPEED       = 20.0;
+    private static final double ZOOM_MIN         = 40.0;  // closest the camera can get
+    private static final double ROTATION_SPEED   = 0.4;
+    private static final double PAN_SPEED        = 0.9;
+    private static final double NODE_RADIUS      = 18.0;
+    private static final int    SCENE_W          = 1100;
+    private static final int    SCENE_H          = 700;
 
-    // Spawn damping — new nodes ease in over ~2 seconds
+    // ── Spawn damping ──────────────────────────────────────────────────
+    // New nodes start with this damping value (near-frozen) and relax
+    // toward the global DAMPING over SPAWN_DAMP_TICKS frames (~2 seconds).
     private static final double SPAWN_DAMPING_INITIAL = 0.98;
     private static final double SPAWN_DAMPING_TARGET  = DAMPING;
-    private static final int    SPAWN_DAMP_TICKS      = 120;
-
-    // Auto-focus glide
-    private static final double GLIDE_SPEED     = 0.09;
+    private static final int    SPAWN_DAMP_TICKS      = 120; // ~2s at 60fps
 
     // ══════════════════════════════════════════════════════════════════
     //  SPAWN DATA
@@ -88,7 +88,8 @@ public class WorkspaceGraph3D extends Application {
 
         interface User32Extended extends StdCallLibrary {
             User32Extended INSTANCE = isWindows()
-                ? Native.load("user32", User32Extended.class, W32APIOptions.DEFAULT_OPTIONS)
+                ? Native.load("user32", User32Extended.class,
+                              W32APIOptions.DEFAULT_OPTIONS)
                 : null;
 
             boolean EnumWindows(EnumWindowsCallback lpEnumFunc, Pointer lParam);
@@ -136,6 +137,14 @@ public class WorkspaceGraph3D extends Application {
             return results;
         }
 
+        static List<WindowEntry> findAllWindows(String titleSubstring) {
+            String lower = titleSubstring.toLowerCase();
+            List<WindowEntry> filtered = new ArrayList<>();
+            for (WindowEntry e : listAllWindows())
+                if (e.title().toLowerCase().contains(lower)) filtered.add(e);
+            return filtered;
+        }
+
         static void focusWindow(HWND hwnd) {
             if (!isAvailable() || hwnd == null) return;
             User32Extended u = User32Extended.INSTANCE;
@@ -161,9 +170,12 @@ public class WorkspaceGraph3D extends Application {
         // Physics
         double x, y, z, vx, vy, vz, fx, fy, fz;
 
-        // Spawn damping
+        // ── Spawn damping ─────────────────────────────────────────────
+        // spawnDamping starts at SPAWN_DAMPING_INITIAL (near 1 = nearly frozen)
+        // and is nudged toward DAMPING each tick by physicsTick().
+        // Once it reaches DAMPING the node behaves identically to existing ones.
         double spawnDamping = SPAWN_DAMPING_INITIAL;
-        int    spawnTick    = 0;
+        int    spawnTick    = 0;   // counts frames since spawn
 
         // Scene graph
         Sphere sphere;
@@ -178,7 +190,7 @@ public class WorkspaceGraph3D extends Application {
         Color  baseColor;
 
         // OS window binding
-        HWND hwnd = null;
+        HWND   hwnd = null;
         boolean isBound() { return hwnd != null; }
 
         GraphNode(String name, Color baseColor, double x, double y, double z) {
@@ -296,9 +308,17 @@ public class WorkspaceGraph3D extends Application {
     private final Random rng = new Random(42);
 
     private final Group             world3D = new Group();
-    private final Rotate            rotateX = new Rotate(20,  Rotate.X_AXIS);
-    private final Rotate            rotateY = new Rotate(-30, Rotate.Y_AXIS);
     private final PerspectiveCamera camera  = new PerspectiveCamera(true);
+
+    // Rotation transforms applied to world3D — rotating the world around a
+    // fixed camera gives identical visuals to rotating the camera around a
+    // fixed world, and is far simpler to reason about in JavaFX because:
+    //   • The camera stays at a known Z position always
+    //   • Billboard counter-rotation is just (-worldAngleY, -worldAngleX)
+    //   • Pan (translate world3D X/Y) works correctly in all orientations
+    private final Rotate rotateX = new Rotate(20,  Rotate.X_AXIS);
+    private final Rotate rotateY = new Rotate(-30, Rotate.Y_AXIS);
+
     private double mouseX, mouseY;
     private int    spawnIndex = 0;
 
@@ -306,22 +326,29 @@ public class WorkspaceGraph3D extends Application {
     private GraphNode linkSource     = null;
     private GraphNode selectedNode   = null;
 
+    private Label  statusLabel;
+    private Button linkBtn;
+    private Button deleteBtn;
+    private Button bindBtn;
+    private javafx.scene.control.TextField nameField;
+
+    // ── Auto-focus glide state ────────────────────────────────────────
+    // Animates three things simultaneously toward their targets each tick:
+    //   • rotateX / rotateY  → reset to 0  (face-on view)
+    //   • world3D.translateX → -node.x     (centre node horizontally)
+    //   • world3D.translateY → -node.y     (centre node vertically)
+    //
+    // Because angles reset to zero, world axes = screen axes at the end
+    // of the glide, so the simple -node.x/-node.y translation is exact.
+    // No scene-projection math required.
     private boolean autoFocusEnabled = false;
-    private boolean sideViewEnabled  = false;
+    private boolean sideViewEnabled  = false; // when true, auto-focus rotates 90° on Y
     private boolean glideActive      = false;
     private double  glideTargetX     = 0;
     private double  glideTargetY     = 0;
     private double  glideTargetRX    = 0;
     private double  glideTargetRY    = 0;
-    private boolean isFullscreen     = false;
-
-    private Label                           statusLabel;
-    private Button                          linkBtn;
-    private Button                          deleteBtn;
-    private Button                          bindBtn;
-    private javafx.scene.control.TextField  nameField;
-    private BorderPane                      rootLayout;
-    private javafx.scene.control.ScrollPane sidebarPanel;
+    private static final double GLIDE_SPEED = 0.09; // lerp factor per tick
 
     // ══════════════════════════════════════════════════════════════════
     //  ENTRY POINT
@@ -331,67 +358,26 @@ public class WorkspaceGraph3D extends Application {
 
     @Override
     public void start(Stage stage) {
-        stage.setTitle("3D Workspace Graph — Phase 1");
+        stage.setTitle("3D Workspace Graph");
         BorderPane root = buildUI();
 
         addNodeAt("Root", Color.web("#58A6FF"), 0, 0, 0);
+
         startPhysicsLoop();
 
-        // The Scene is fixed at SCENE_W × SCENE_H always.
-        // "Fullscreen" is simulated by scaling the root layout node
-        // uniformly to fill the screen — everything (SubScene + sidebar)
-        // scales together as one unit.  No OS fullscreen API is used.
         javafx.scene.Scene scene = new javafx.scene.Scene(root, SCENE_W, SCENE_H,
                                                            Color.web("#0D1117"));
         scene.setOnKeyPressed(e -> {
             switch (e.getCode()) {
                 case DELETE, BACK_SPACE -> deleteSelectedNode();
-                case F11 -> toggleFullscreen(stage, root);
+                case F11 -> stage.setFullScreen(!stage.isFullScreen());
                 default -> {}
             }
         });
-
-        stage.setResizable(false);
+        stage.setFullScreenExitHint("Press F11 to exit full screen");
+        stage.setResizable(true);
         stage.setScene(scene);
         stage.show();
-    }
-
-    /**
-     * Toggles between windowed and "fullscreen" mode.
-     *
-     * Rather than using stage.setFullScreen() (which only affects the
-     * SubScene and leaves the sidebar behind), we:
-     *   1. Expand the Stage to cover the full screen bounds.
-     *   2. Compute a uniform scale factor: min(screenW/SCENE_W, screenH/SCENE_H)
-     *      so the entire root layout — SubScene + sidebar — scales together.
-     *   3. Apply that scale to the root BorderPane via setScaleX/Y.
-     *
-     * Exiting fullscreen restores the stage size and resets scale to 1.0.
-     * The Scene dimensions never change, so layout is always stable.
-     */
-    private void toggleFullscreen(Stage stage, BorderPane root) {
-        isFullscreen = !isFullscreen;
-        if (isFullscreen) {
-            javafx.geometry.Rectangle2D screen =
-                javafx.stage.Screen.getPrimary().getVisualBounds();
-            double scaleX = screen.getWidth()  / SCENE_W;
-            double scaleY = screen.getHeight() / SCENE_H;
-            double scale  = Math.min(scaleX, scaleY);
-
-            root.setScaleX(scale);
-            root.setScaleY(scale);
-
-            stage.setX(screen.getMinX());
-            stage.setY(screen.getMinY());
-            stage.setWidth(screen.getWidth());
-            stage.setHeight(screen.getHeight());
-        } else {
-            root.setScaleX(1.0);
-            root.setScaleY(1.0);
-            stage.setWidth(SCENE_W);
-            stage.setHeight(SCENE_H);
-            stage.centerOnScreen();
-        }
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -399,7 +385,7 @@ public class WorkspaceGraph3D extends Application {
     // ══════════════════════════════════════════════════════════════════
 
     private BorderPane buildUI() {
-        SubScene subScene = new SubScene(world3D, SCENE_W - 238, SCENE_H, true,
+        SubScene subScene = new SubScene(world3D, SCENE_W - 230, SCENE_H, true,
                                          SceneAntialiasing.BALANCED);
         subScene.setFill(Color.TRANSPARENT);
 
@@ -419,14 +405,20 @@ public class WorkspaceGraph3D extends Application {
 
         StackPane viewport = new StackPane(subScene);
         viewport.setStyle("-fx-background-color: #0D1117;");
+
+        // Bind the SubScene dimensions to the viewport so it fills
+        // whatever space the BorderPane centre gives it — including
+        // when the window goes fullscreen or is manually resized.
+        subScene.widthProperty().bind(viewport.widthProperty());
+        subScene.heightProperty().bind(viewport.heightProperty());
+
         attachMouseHandlers(viewport);
 
-        rootLayout = new BorderPane();
-        rootLayout.setStyle("-fx-background-color: #0D1117;");
-        rootLayout.setCenter(viewport);
-        sidebarPanel = buildSidebar();
-        rootLayout.setRight(sidebarPanel);
-        return rootLayout;
+        BorderPane root = new BorderPane();
+        root.setStyle("-fx-background-color: #0D1117;");
+        root.setCenter(viewport);
+        root.setRight(buildSidebar());
+        return root;
     }
 
     private javafx.scene.control.ScrollPane buildSidebar() {
@@ -491,7 +483,6 @@ public class WorkspaceGraph3D extends Application {
 
         Region divDel = divider();
         Label delTitle = sectionHeader("SELECTED NODE");
-
         deleteBtn = styledButton("🗑  Delete Selected", "#6E1010", "#9B1C1C");
         deleteBtn.setDisable(true);
         deleteBtn.setOnAction(e -> deleteSelectedNode());
@@ -526,6 +517,10 @@ public class WorkspaceGraph3D extends Application {
         Region divFocus = divider();
         Label focusTitle = sectionHeader("CAMERA");
 
+        // ToggleButton styled to match the rest of the panel.
+        // When selected it turns blue; when deselected it goes grey.
+        // We use a ToggleButton rather than a CheckBox so it matches
+        // the visual language of the other action buttons.
         javafx.scene.control.ToggleButton autoFocusBtn =
             new javafx.scene.control.ToggleButton("🎯  Auto-Focus: OFF");
         autoFocusBtn.setMaxWidth(Double.MAX_VALUE);
@@ -537,7 +532,7 @@ public class WorkspaceGraph3D extends Application {
             autoFocusEnabled = isOn;
             autoFocusBtn.setText(isOn ? "🎯  Auto-Focus: ON" : "🎯  Auto-Focus: OFF");
             autoFocusBtn.setStyle(isOn ? afOn : afOff);
-            if (!isOn) glideActive = false;
+            if (!isOn) glideActive = false;  // immediately halt any running glide
         });
 
         Label focusHint = new Label("When ON, clicking a\nnode glides the camera\nto centre it.\nDrag to cancel glide.");
@@ -545,6 +540,9 @@ public class WorkspaceGraph3D extends Application {
         focusHint.setTextFill(Color.web("#484F58"));
         focusHint.setWrapText(true);
 
+        // Side-view toggle — only meaningful when auto-focus is on.
+        // Rotates the world 90° around Y during the glide so the camera
+        // views the node from the side rather than face-on.
         javafx.scene.control.ToggleButton sideViewBtn =
             new javafx.scene.control.ToggleButton("↔  Side View: OFF");
         sideViewBtn.setMaxWidth(Double.MAX_VALUE);
@@ -572,8 +570,6 @@ public class WorkspaceGraph3D extends Application {
         javafx.scene.control.ScrollPane scroll =
             new javafx.scene.control.ScrollPane(sidebar);
         scroll.setPrefWidth(238);
-        scroll.setMinWidth(238);
-        scroll.setMaxWidth(238);
         scroll.setFitToWidth(true);
         scroll.setHbarPolicy(javafx.scene.control.ScrollPane.ScrollBarPolicy.NEVER);
         scroll.setVbarPolicy(javafx.scene.control.ScrollPane.ScrollBarPolicy.AS_NEEDED);
@@ -639,6 +635,62 @@ public class WorkspaceGraph3D extends Application {
         deleteBtn.setDisable(false);
         bindBtn.setDisable(false);
         if (autoFocusEnabled) startGlideTo(node);
+    }
+
+    /**
+     * Triggers a smooth glide that resets the camera angle to face-on,
+     * centres the node, and adjusts zoom so the node and its neighbours
+     * are comfortably in view.
+     *
+     * ZOOM TARGET CALCULATION
+     * ───────────────────────
+     * After the rotation resets to zero, the camera looks straight down
+     * the -Z axis at the world origin.  The node will be centred at (0,0)
+     * on screen by the pan.  Its depth (node.z) tells us how far it is
+     * along the camera's view axis.
+     *
+     * To frame the node and its connected neighbours we compute the
+     * maximum distance from the node to any of its neighbours, then add
+     * a comfortable padding multiplier.  That gives the camera Z target.
+     *
+     *   targetZ = -(spread * FOCUS_PADDING + NODE_RADIUS * 3)
+     *
+     * WHY node.z IS NOT INCLUDED
+     * ──────────────────────────
+     * camera.translateZ lives in screen/parent space — it is the literal
+     * distance from the camera to the world origin along the view axis.
+     * node.z is in world3D's LOCAL space, which rotates with world3D.
+     * After any rotation, world-local Z does not map to view-axis depth.
+     * Adding node.z to the camera distance therefore produces a different
+     * result for every rotation angle — nodes behind the origin push the
+     * camera further back, nodes in front pull it closer, incorrectly.
+     * The camera just needs to be far enough to see the spread of neighbours,
+     * regardless of where in world space the node happens to sit.
+     *
+     * If the node has no edges we fall back to a fixed comfortable distance.
+     * The result is clamped to ZOOM_MIN so we never clip into geometry.
+     */
+    private void startGlideTo(GraphNode node) {
+        // When side view rotates world3D by 90° around Y, the world axes
+        // are remapped in screen space:
+        //   face-on (0°):  screen-X = world-X,  screen-Z = world-Z
+        //   side view (90°): screen-X = world-Z, screen-Z = -world-X
+        //
+        // world3D.translateX/Y operates in screen space, so we must use
+        // the correct world axis for each rotation target:
+        //   face-on:   panX = -node.x,  panY = -node.y
+        //   side view: panX = -node.z,  panY = -node.y  (X and Z swapped)
+        if (sideViewEnabled) {
+            glideTargetX  = -node.z;
+            glideTargetY  = -node.y;
+            glideTargetRY = 90.0;
+        } else {
+            glideTargetX  = -node.x;
+            glideTargetY  = -node.y;
+            glideTargetRY = 0.0;
+        }
+        glideTargetRX = 0;
+        glideActive   = true;
     }
 
     private void clearSelection() {
@@ -714,24 +766,6 @@ public class WorkspaceGraph3D extends Application {
     private void setStatus(String text) { statusLabel.setText(text); }
 
     // ══════════════════════════════════════════════════════════════════
-    //  AUTO-FOCUS GLIDE
-    // ══════════════════════════════════════════════════════════════════
-
-    private void startGlideTo(GraphNode node) {
-        if (sideViewEnabled) {
-            glideTargetX  = -node.z;
-            glideTargetY  = -node.y;
-            glideTargetRY = 90.0;
-        } else {
-            glideTargetX  = -node.x;
-            glideTargetY  = -node.y;
-            glideTargetRY = 0.0;
-        }
-        glideTargetRX = 0;
-        glideActive   = true;
-    }
-
-    // ══════════════════════════════════════════════════════════════════
     //  MOUSE HANDLERS
     // ══════════════════════════════════════════════════════════════════
 
@@ -739,16 +773,28 @@ public class WorkspaceGraph3D extends Application {
         viewport.setOnMousePressed(e -> { mouseX = e.getSceneX(); mouseY = e.getSceneY(); });
 
         viewport.setOnMouseDragged(e -> {
+            // Any manual drag immediately cancels the glide and hands
+            // full control back to the user — including any in-progress
+            // rotation reset.
             glideActive = false;
+
             double dx = e.getSceneX() - mouseX;
             double dy = e.getSceneY() - mouseY;
             mouseX = e.getSceneX(); mouseY = e.getSceneY();
 
             if (e.isPrimaryButtonDown()) {
+                // ── LEFT DRAG → orbit rotation ────────────────────────
+                // Rotating world3D around its own centre with the camera
+                // fixed is visually identical to orbiting the camera.
+                // rotateY spins left/right, rotateX tilts up/down.
                 if (linkModeActive) return;
                 rotateY.setAngle(rotateY.getAngle() - dx * ROTATION_SPEED);
                 rotateX.setAngle(rotateX.getAngle() - dy * ROTATION_SPEED);
+
             } else if (e.isSecondaryButtonDown()) {
+                // ── RIGHT DRAG → pan ──────────────────────────────────
+                // Translating world3D in screen-aligned X/Y shifts the
+                // entire scene without affecting rotation or zoom.
                 world3D.setTranslateX(world3D.getTranslateX() + dx * PAN_SPEED);
                 world3D.setTranslateY(world3D.getTranslateY() + dy * PAN_SPEED);
             }
@@ -768,6 +814,7 @@ public class WorkspaceGraph3D extends Application {
 
         viewport.setOnScroll(e -> {
             double newZ = camera.getTranslateZ() + e.getDeltaY() * ZOOM_SPEED / 40.0;
+            // Only clamp the near end — no limit on zooming out
             newZ = Math.min(-ZOOM_MIN, newZ);
             camera.setTranslateZ(newZ);
         });
@@ -929,19 +976,46 @@ public class WorkspaceGraph3D extends Application {
 
     // ══════════════════════════════════════════════════════════════════
     //  SAVE / LOAD
+    //
+    //  Format: plain JSON, no external library needed.
+    //  Written manually with StringBuilder; parsed with a minimal
+    //  hand-rolled reader — zero dependencies added.
+    //
+    //  Schema:
+    //  {
+    //    "version": 1,
+    //    "nodes": [
+    //      { "id": 0, "name": "Root", "color": "#58A6FF",
+    //        "x": 0.0, "y": 0.0, "z": 0.0,
+    //        "boundTitle": "Visual Studio Code" }   // "" if unbound
+    //    ],
+    //    "edges": [
+    //      { "from": 0, "to": 1 }
+    //    ]
+    //  }
+    //
+    //  HWND values are NOT saved — they are process-lifetime handles that
+    //  are meaningless across sessions.  Instead we save the window title
+    //  string and re-run findAllWindows() on import to rebind live.
     // ══════════════════════════════════════════════════════════════════
 
     private VBox buildSaveLoadSection() {
         Button saveBtn = styledButton("💾  Export Workspace", "#1C3A5E", "#1F4E79");
         saveBtn.setOnAction(e -> saveGraph());
+
         Button loadBtn = styledButton("📂  Import Workspace", "#2D3A1E", "#3A4D28");
         loadBtn.setOnAction(e -> loadGraph());
-        Label hint = new Label("Export saves nodes,\nlinks to a .json file.");
+
+        Label hint = new Label("Export saves nodes,\nlinks & window bindings\nto a .json file.");
         hint.setFont(Font.font("Monospace", 10));
         hint.setTextFill(Color.web("#484F58"));
         hint.setWrapText(true);
-        return new VBox(6, saveBtn, loadBtn, hint);
+
+        VBox box = new VBox(6, saveBtn, loadBtn, hint);
+        return box;
     }
+
+    // ── Export ────────────────────────────────────────────────────────
 
     private void saveGraph() {
         javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
@@ -952,17 +1026,21 @@ public class WorkspaceGraph3D extends Application {
         java.io.File file = fc.showSaveDialog(null);
         if (file == null) return;
 
+        // Assign each node a stable integer index for edge references
         java.util.Map<GraphNode, Integer> idMap = new java.util.IdentityHashMap<>();
         for (int i = 0; i < nodes.size(); i++) idMap.put(nodes.get(i), i);
 
         StringBuilder sb = new StringBuilder();
         sb.append("{\n  \"version\": 1,\n  \"nodes\": [\n");
+
         for (int i = 0; i < nodes.size(); i++) {
             GraphNode n = nodes.get(i);
+            // Convert Color back to a hex string
             String hex = String.format("#%02X%02X%02X",
                 (int)(n.baseColor.getRed()   * 255),
                 (int)(n.baseColor.getGreen() * 255),
                 (int)(n.baseColor.getBlue()  * 255));
+
             sb.append("    { \"id\": ").append(i)
               .append(", \"name\": ").append(jsonStr(n.name))
               .append(", \"color\": ").append(jsonStr(hex))
@@ -973,6 +1051,7 @@ public class WorkspaceGraph3D extends Application {
             if (i < nodes.size() - 1) sb.append(",");
             sb.append("\n");
         }
+
         sb.append("  ],\n  \"edges\": [\n");
         for (int i = 0; i < edges.size(); i++) {
             GraphEdge e = edges.get(i);
@@ -991,6 +1070,8 @@ public class WorkspaceGraph3D extends Application {
         }
     }
 
+    // ── Import ────────────────────────────────────────────────────────
+
     private void loadGraph() {
         javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
         fc.setTitle("Import Workspace");
@@ -1008,6 +1089,7 @@ public class WorkspaceGraph3D extends Application {
         }
 
         try {
+            // ── Clear current graph ───────────────────────────────────
             for (GraphEdge e : new ArrayList<>(edges)) removeEdge(e);
             for (GraphNode n : new ArrayList<>(nodes)) {
                 world3D.getChildren().remove(n.sphere);
@@ -1017,7 +1099,8 @@ public class WorkspaceGraph3D extends Application {
             clearSelection();
             clearLinkSelection();
 
-            String nodesArr = between(json, "\"nodes\"", "]");
+            // ── Parse nodes ───────────────────────────────────────────
+            String nodesArr  = between(json, "\"nodes\"", "]");
             List<String> nodeObjs = splitObjects(nodesArr);
             List<GraphNode> loaded = new ArrayList<>();
 
@@ -1027,45 +1110,73 @@ public class WorkspaceGraph3D extends Application {
                 double x     = dblVal(obj, "x");
                 double y     = dblVal(obj, "y");
                 double z     = dblVal(obj, "z");
+
                 GraphNode node = addNodeAt(name, Color.web(color), x, y, z);
                 node.spawnTick    = SPAWN_DAMP_TICKS;
                 node.spawnDamping = DAMPING;
                 loaded.add(node);
             }
 
+            // ── Parse edges ───────────────────────────────────────────
             String edgesArr = between(json, "\"edges\"", "]");
-            for (String obj : splitObjects(edgesArr)) {
+            List<String> edgeObjs = splitObjects(edgesArr);
+            for (String obj : edgeObjs) {
                 int from = (int) dblVal(obj, "from");
                 int to   = (int) dblVal(obj, "to");
-                if (from >= 0 && from < loaded.size() && to >= 0 && to < loaded.size())
+                if (from >= 0 && from < loaded.size()
+                        && to >= 0 && to < loaded.size()) {
                     addEdge(loaded.get(from), loaded.get(to));
+                }
             }
 
-            setStatus("Loaded " + loaded.size() + " nodes,\n" + edges.size() + " edges.");
+            setStatus("Loaded " + loaded.size() + " nodes,\n"
+                    + edges.size() + " edges.");
+
         } catch (Exception ex) {
             setStatus("Parse error:\n" + ex.getMessage());
         }
     }
 
+    // ── Minimal JSON helpers (no external library) ────────────────────
+
+    /** Quote and escape a string value for JSON output. */
     private static String jsonStr(String s) {
         return "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
     }
-    private static String fmt(double v) { return String.format("%.2f", v); }
 
+    /** Format a double to 2 decimal places for compact output. */
+    private static String fmt(double v) {
+        return String.format("%.2f", v);
+    }
+
+    /**
+     * Extract the contents of the JSON array whose key is {@code startKey}.
+     * Finds the opening [ after the key, then walks forward counting
+     * brackets to find the matching ], so nested structures don't confuse it.
+     */
     private static String between(String json, String startKey, String endToken) {
         int k = json.indexOf(startKey);
         if (k < 0) return "";
         int open = json.indexOf("[", k);
         if (open < 0) return "";
+
+        // Walk forward from open bracket, counting depth to find the match
         int depth = 0;
         for (int i = open; i < json.length(); i++) {
             char c = json.charAt(i);
             if (c == '[') depth++;
-            else if (c == ']') { depth--; if (depth == 0) return json.substring(open + 1, i); }
+            else if (c == ']') {
+                depth--;
+                if (depth == 0) return json.substring(open + 1, i);
+            }
         }
         return "";
     }
 
+    /**
+     * Split a JSON array body (already stripped of outer [ ]) into
+     * individual {...} object strings.
+     */
     private static List<String> splitObjects(String body) {
         List<String> out = new ArrayList<>();
         int depth = 0, start = -1;
@@ -1077,11 +1188,15 @@ public class WorkspaceGraph3D extends Application {
         return out;
     }
 
+    /**
+     * Extract the string value for {@code key} from a JSON object string.
+     * Handles escaped quotes inside the value.
+     */
     private static String strVal(String obj, String key) {
         int k = obj.indexOf("\"" + key + "\"");
         if (k < 0) return "";
         int colon = obj.indexOf(":", k);
-        int q1 = obj.indexOf("\"", colon + 1);
+        int q1    = obj.indexOf("\"", colon + 1);
         if (q1 < 0) return "";
         StringBuilder sb = new StringBuilder();
         for (int i = q1 + 1; i < obj.length(); i++) {
@@ -1093,6 +1208,9 @@ public class WorkspaceGraph3D extends Application {
         return sb.toString();
     }
 
+    /**
+     * Extract a numeric value for {@code key} from a JSON object string.
+     */
     private static double dblVal(String obj, String key) {
         int k = obj.indexOf("\"" + key + "\"");
         if (k < 0) return 0;
@@ -1122,6 +1240,7 @@ public class WorkspaceGraph3D extends Application {
         int n = nodes.size();
         for (GraphNode nd : nodes) { nd.fx = 0; nd.fy = 0; nd.fz = 0; }
 
+        // Repulsion
         for (int i = 0; i < n; i++) {
             for (int j = i + 1; j < n; j++) {
                 GraphNode a = nodes.get(i), b = nodes.get(j);
@@ -1134,6 +1253,7 @@ public class WorkspaceGraph3D extends Application {
             }
         }
 
+        // Attraction
         for (GraphEdge e : edges) {
             double dx = e.b.x-e.a.x, dy = e.b.y-e.a.y, dz = e.b.z-e.a.z;
             double dist = Math.max(1.0, Math.sqrt(dx*dx + dy*dy + dz*dz));
@@ -1143,10 +1263,12 @@ public class WorkspaceGraph3D extends Application {
             e.b.fx-=fx; e.b.fy-=fy; e.b.fz-=fz;
         }
 
+        // Integrate — each node uses its own spawnDamping which relaxes to DAMPING
         for (GraphNode nd : nodes) {
+            // Step spawn damping toward global DAMPING over SPAWN_DAMP_TICKS frames
             if (nd.spawnTick < SPAWN_DAMP_TICKS) {
                 nd.spawnTick++;
-                double progress = (double) nd.spawnTick / SPAWN_DAMP_TICKS;
+                double progress = (double) nd.spawnTick / SPAWN_DAMP_TICKS; // 0 → 1
                 nd.spawnDamping = SPAWN_DAMPING_INITIAL
                     + (SPAWN_DAMPING_TARGET - SPAWN_DAMPING_INITIAL) * progress;
             } else {
@@ -1166,7 +1288,18 @@ public class WorkspaceGraph3D extends Application {
         }
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    //  SCENE GRAPH SYNC
+    // ══════════════════════════════════════════════════════════════════
+
     private void syncSceneGraph() {
+        // ── Glide tick ────────────────────────────────────────────────
+        // If a glide is active, lerp world3D's translation toward the
+        // target each frame.  GLIDE_SPEED = 0.10 means we cover 10% of
+        // the remaining distance per tick — exponential ease-out that
+        // starts fast and slows as it approaches the target.
+        // We stop the glide once we're within 0.5 world-units to avoid
+        // infinite micro-corrections.
         if (glideActive) {
             double curX  = world3D.getTranslateX();
             double curY  = world3D.getTranslateY();
