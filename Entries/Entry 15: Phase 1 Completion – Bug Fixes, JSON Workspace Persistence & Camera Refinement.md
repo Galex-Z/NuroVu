@@ -1,19 +1,34 @@
 Aug 13, 2026
 beta33
+
 #Concluded Phase 1 of the 3D Graph Visualizer engine. 
+
 This milestone consolidated multiple feature additions, critical camera projection bug fixes, JSON-based workspace save/load operations, and refined 3D interaction modes into a stable, self-contained architecture.
+
 Key Architectural & Feature Milestones:
+
 Workspace Serialization & Persistence:Added a dependency-free JSON import/export parser to persist graph states (node labels, colors, $X/Y/Z$ coordinates, and edge connections).
+
 Resolved nested bracket parsing issues (between() logic) by implementing depth-based bracket counting to prevent edge-array corruption.Configured imported nodes to bypass spawn damping mechanics (spawnTick set to settled threshold) so saved structures render immediately in equilibrium positions without scattering.
+
 Auto-Focus Camera Motion & View Modes:Coordinate Alignment: Fixed screen-space vs. world-space pan overshoot by decoupling zoom manipulation from auto-focus, strictly lerping $X/Y$ translation and rotation matrices (rotateX, rotateY).
+
 Side-View Focus Mode: Introduced a side-view toggle that rotates the viewport 90° along the Y-axis. Re-mapped pan targets to account for axis swapping ($+Z$ mapping to screen-horizontal when rotated 90°).
+
 Target Snapping Fix: Updated auto-focus animation convergence to snap directly to variable targets (glideTargetRX, glideTargetRY) instead of hardcoded zero angles.
+
 OS Window Binding Architecture:Shifted window binding persistence away from dynamic runtime handles (HWND) to saved window title strings (boundTitle).
+
 Enhanced window title matching across sessions using a multi-tiered heuristic (exact match > saved-contains-current > current-contains-saved) to handle dynamic application title changes (e.g., active file names in editors or browsers).
+
 Viewport Navigation & Physics:Removed upper zoom distance limits (ZOOM_MAX), leaving viewport distance control fully in the user's hands.
+
 Preserved full FPS-style navigation independence: orbit rotation, 2D translation panning, scroll zoom, and instant manual drag cancellation during automated camera glides.
+
 this version is the finished result of phase one.
+
 Claude's response:
+
 What was added and why each decision was made
 State fields — three variables, no new threads
 java
