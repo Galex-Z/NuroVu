@@ -1,6 +1,6 @@
 Aug 8, 2026
 beta13
-#Resolved a Win32 window management bug where activating or bringing target windows to the foreground forced them to shrink or reset to default dimensions. Refactored the native focus routine to preserve window bounds and respect current window states.
+# Resolved a Win32 window management bug where activating or bringing target windows to the foreground forced them to shrink or reset to default dimensions. Refactored the native focus routine to preserve window bounds and respect current window states.
 
 Key Changes
 
