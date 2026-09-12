@@ -1,3 +1,4 @@
+Aug 8, 2026
 beta12
 #Summary
 Transitioned from automated background title matching to an explicit, interactive window picker model. Instead of relying on automatic title scanning at node creation, the system now scans all active windows and provides a searchable dialog for precise window-to-node binding.
