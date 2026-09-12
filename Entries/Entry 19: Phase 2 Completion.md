@@ -1,7 +1,7 @@
 Aug 16, 2026
 beta43
 
-#Marked the successful conclusion of Phase 2, capping an intensive 10-day sprint (August 6–16, 2026) that transformed a raw experiment into a fully viable, physics-driven 3D spatial graph with native OS window integration, live multi-viewport mirroring, and robust state persistence—all contained within a lean, single-file Java architecture.
+# Marked the successful conclusion of Phase 2, capping an intensive 10-day sprint (August 6–16, 2026) that transformed a raw experiment into a fully viable, physics-driven 3D spatial graph with native OS window integration, live multi-viewport mirroring, and robust state persistence—all contained within a lean, single-file Java architecture.
 
 Phase 2 Engineering Highlights
 
