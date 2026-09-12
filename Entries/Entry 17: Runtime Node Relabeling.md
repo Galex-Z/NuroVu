@@ -1,6 +1,6 @@
 Aug 15, 2026
 beta35.2
-#Implemented dynamic node renaming capabilities, allowing users to update the label of any selected node at runtime without affecting its underlying physics, edge topology, or OS window binding state.
+# Implemented dynamic node renaming capabilities, allowing users to update the label of any selected node at runtime without affecting its underlying physics, edge topology, or OS window binding state.
 
 Key Changes
 
