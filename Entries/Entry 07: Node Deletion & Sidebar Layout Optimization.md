@@ -1,6 +1,6 @@
 Aug 8, 2026
 beta9
-#Implemented full node deletion capabilities with dynamic visual feedback, and restructured the sidebar layout to fix vertical overflow issues across smaller screen resolutions.
+# Implemented full node deletion capabilities with dynamic visual feedback, and restructured the sidebar layout to fix vertical overflow issues across smaller screen resolutions.
 
 Key Changes
 
