@@ -1,7 +1,7 @@
 Aug 9, 2026
 beta 14
 
-#Addressed an issue where newly spawned nodes were immediately catapulted across the scene by repelling forces from existing graph nodes. Implemented a temporary, per-node spawn damping force that gradually relaxes over two seconds to ensure smooth spatial entry.
+# Addressed an issue where newly spawned nodes were immediately catapulted across the scene by repelling forces from existing graph nodes. Implemented a temporary, per-node spawn damping force that gradually relaxes over two seconds to ensure smooth spatial entry.
 
 Key Changes
 
