@@ -1,3 +1,4 @@
+Aug 7, 2026
 beta 6
 # Simplified application startup by replacing the multi-node initial seed with a single centered "Root" node at the world origin.
 Key ChangesExplicit Positioning Helper: Refactored node creation by introducing addNodeAt(name, color, x, y, z) for precise spatial placement, while maintaining addNode() as a convenience wrapper for randomized spawning.
