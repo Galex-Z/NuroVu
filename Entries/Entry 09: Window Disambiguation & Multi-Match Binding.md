@@ -1,6 +1,6 @@
 Aug 8, 2026
 beta11
-#Resolved window targeting collisions where search queries matched multiple open applications or tabs. Added a disambiguation picker modal to allow explicit window selection when multiple matches are found.
+# Resolved window targeting collisions where search queries matched multiple open applications or tabs. Added a disambiguation picker modal to allow explicit window selection when multiple matches are found.
 
 Key Changes
 
