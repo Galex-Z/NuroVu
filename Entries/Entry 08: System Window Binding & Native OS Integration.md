@@ -1,6 +1,6 @@
 Aug 8, 2026
 beta10
-#Completed the prototype stage by adding OS-level window binding capabilities via JNA (Java Native Access). Nodes can now fuzzy-match and bind to active application windows/tabs by title and automatically focus or restore them upon interaction.
+# Completed the prototype stage by adding OS-level window binding capabilities via JNA (Java Native Access). Nodes can now fuzzy-match and bind to active application windows/tabs by title and automatically focus or restore them upon interaction.
 
 Key Changes
 
