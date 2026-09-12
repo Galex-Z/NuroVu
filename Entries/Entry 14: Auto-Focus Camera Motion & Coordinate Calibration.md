@@ -1,13 +1,22 @@
 Aug 11, 2026
 beta23
+
 #Introduced an "Auto-Focus Mode" toggle that smoothly glides the viewport camera to align with any selected graph node. 
+
 Resolved dynamic coordinate-space mismatches across transformed 3D rotations by synchronizing translation panning with an angle-reset animation.
+
 Key Changes
+
 Auto-Focus Glide State: Added an exponential ease-out lerp mechanism (GLIDE_SPEED = 0.10) within the primary AnimationTimer loop to smoothly translate viewport boundaries toward the target node without additional background threads.
+
 Manual Override Safety: Implemented immediate glide cancellation upon detecting any mouse drag input, returning instant manual view control to the user.
+
 Coordinate-Space Reconciliation:Identified a coordinate misalignment bug where translating screen-space boundaries ($X/Y$) directly using world-local node position coordinates ($-x, -y$) caused overshoot or inaccurate framing when the scene was rotated away from origin angles.Solved by animating all four primary transforms simultaneously (translateX, translateY, rotateX, rotateY). As the camera glides toward the node's local position, rotation angles smoothly interpolate back to zero, re-aligning world axes directly with screen space for smooth target framing.
+
 UI Controls: Integrated a dedicated Auto-Focus ToggleButton within the sidebar interface with active state handling.
+
 Claude's conversation:
+
 Good. I have everything I need. Three surgical edits: add state fields, add the UI toggle to the sidebar, hook selectNode to trigger the glide, and add the glide method plus manual-override cancellation in the drag handler.
 
 Edited 2 files
