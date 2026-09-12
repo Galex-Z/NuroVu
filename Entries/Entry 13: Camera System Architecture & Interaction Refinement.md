@@ -1,7 +1,7 @@
 Aug 10, 2026
 Beta18
 
-#Evaluated alternative camera orientation models (FPS-style camera local rotation vs. world-group transformation). 
+# Evaluated alternative camera orientation models (FPS-style camera local rotation vs. world-group transformation). 
 
 Re-architected and stabilized the 3D interaction system to ensure rotation, panning, and billboard label counter-rotations remain strictly independent without cross-contamination.
 
