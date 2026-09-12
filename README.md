@@ -27,3 +27,8 @@ This project maps workspaces into a **3D Semantic Nebula**. Related windows (e.g
 *   **Java 21+** - Core application logic.
 *   **JavaFX 3D** - Utilizes built-in hardware-accelerated 3D features (`PerspectiveCamera`, `Sphere`, `PointLight`, and 3D `Group` transforms) to avoid massive third-party rendering engines.
 *   **JNA (Java Native Access)** - Low-level Win32 bridge calling `User32.dll` to manipulate the operating system's window focus.
+
+## Try it youself!
+
+You can download and test the latest Pre-Release here:
+[NuroVu Pre-Releases](https://github.com/Galex-Z/NuroVu/releases)
