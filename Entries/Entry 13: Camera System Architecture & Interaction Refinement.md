@@ -1,15 +1,26 @@
 Aug 10, 2026
 Beta18
+
 #Evaluated alternative camera orientation models (FPS-style camera local rotation vs. world-group transformation). 
+
 Re-architected and stabilized the 3D interaction system to ensure rotation, panning, and billboard label counter-rotations remain strictly independent without cross-contamination.
+
 Key Changes
+
 Camera Architecture & Coordinate Mechanics:Tested an FPS-style camera rig utilizing local pitch/yaw nesting (yawGroup -> pitchGroup -> camera). 
+
 Identified that placing the local camera rig inside the transformed world group caused spatial coupling issues where panning shifted both scene geometry and the camera reference simultaneously.
+
 Re-architected the viewport to utilize standard world-group rotation transforms (rotateX, rotateY) while maintaining a stationary, fixed camera reference.
+
 Decoupled Viewport Controls:Left-Drag Rotation: Operates on the world group's transformation matrix, providing smooth, predictable orbit navigation without risk of gimbal lock.
+
 Right-Drag Panning: Translates the world group across screen-aligned $X/Y$ axes independently of rotation matrices, preventing pan direction tilting post-rotation.
+
 Billboard Label Counter-Rotation: Synchronized billboard orientation matrices directly to inverse world angles. 
+
 Undoing the world rotation per label ensures all text nodes remain screen-aligned and legible regardless of viewport orientation.
+
 Claude's response:
 Good call — this is a proper first-person camera instead of the current "spin the world" approach. The key architectural difference:
 
