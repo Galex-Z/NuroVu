@@ -1,11 +1,17 @@
 Aug 9, 2026
 beta 14
 #Addressed an issue where newly spawned nodes were immediately catapulted across the scene by repelling forces from existing graph nodes. Implemented a temporary, per-node spawn damping force that gradually relaxes over two seconds to ensure smooth spatial entry.
+
 Key Changes
+
 Per-Node Spawn Damping: Added spawnDamping and spawnTick properties to individual graph node instances, replacing uniform global damping during initial node integration.
+
 Gradual Physics Relaxation: New nodes initialize with high damping ($0.98$), bleeding off nearly all velocity on frame 0 to prevent violent force spikes.
+
 Linear Interpolation over Time: Over 120 frames ($\approx 2\text{ seconds}$ at 60 FPS), the node's local damping linearly interpolates down to the default global damping rate ($0.85$).
+
 Smooth Physics Settling: Allows new nodes to gently drift into their equilibrium positions within the force-directed layout without disrupting existing node clusters or launching out of view.
+
 Claude's response:
 The classic solution for this is spawn damping — give each new node its own personal damping coefficient that starts very high (nearly frozen) and relaxes back to the global damping over ~2 seconds. The node floats in gently rather than getting catapulted.
 
