@@ -1,7 +1,7 @@
 # NuroVu
 A Software/Workflow navigation tool which uses 3D Force directed node graphing to represent a window/tab on a desktop, you can open these nodes to be redirected to that specific tab, these nodes can be connected, organised and collapsible. Allowing a person to visualise and navigate their workflow. where the line between thinking and doing blurs
 
-##Summary
+## Summary
 An advanced, 3D spatial desktop utility that transforms operating system window management into an interactive, self-organizing three-dimensional knowledge graph, this tool replaces traditional linear taskbars with an immersive 3D workspace constellation.
 
 Built with **JavaFX 3D** and low-level **Windows API integration (JNA)**, the application maps active desktop windows into a fluid network of floating 3D spherical nodes, connected by reactive vector-spring lines.
