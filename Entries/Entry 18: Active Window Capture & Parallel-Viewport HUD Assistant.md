@@ -1,7 +1,7 @@
 Aug 16, 2026
 beta43
 
-#Introduced two major workflow features: an "Add Active Window" capture shortcut for effortless workspace integration, and a HUD Assistant widget—a secondary, floating 3D viewport utility designed for seamless multi-angle control and navigation.
+# Introduced two major workflow features: an "Add Active Window" capture shortcut for effortless workspace integration, and a HUD Assistant widget—a secondary, floating 3D viewport utility designed for seamless multi-angle control and navigation.
 
 Key Architectural & Feature Milestones
 
