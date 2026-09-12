@@ -1,7 +1,7 @@
 Aug 13, 2026
 beta33
 
-#Concluded Phase 1 of the 3D Graph Visualizer engine. 
+# Concluded Phase 1 of the 3D Graph Visualizer engine. 
 
 This milestone consolidated multiple feature additions, critical camera projection bug fixes, JSON-based workspace save/load operations, and refined 3D interaction modes into a stable, self-contained architecture.
 
