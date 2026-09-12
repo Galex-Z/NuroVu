@@ -1,7 +1,7 @@
 Aug 11, 2026
 beta23
 
-#Introduced an "Auto-Focus Mode" toggle that smoothly glides the viewport camera to align with any selected graph node. 
+# Introduced an "Auto-Focus Mode" toggle that smoothly glides the viewport camera to align with any selected graph node. 
 
 Resolved dynamic coordinate-space mismatches across transformed 3D rotations by synchronizing translation panning with an angle-reset animation.
 
