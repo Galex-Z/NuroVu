@@ -1,5 +1,5 @@
 # NuroVu
-A Software/Workflow navigation tool which uses 3D Force directed node graphing to represent a window/tab on a desktop, you can open these nodes to be redirected to that specific tab, these nodes can be connected, organised and collapsible. Allowing a person to visualise and navigate their workflow. where the line between thinking and doing blurs
+A Software/Workflow navigation tool which uses 3D Force directed node graphing to represent a window/tab on a desktop, you can open these nodes to be redirected to that specific tab, these nodes can be connected and organised. Allowing a person to visualise and navigate their workflow. where the line between thinking and doing blurs
 
 <img width="1280" height="720" alt="Video Project 6 (1)" src="https://github.com/user-attachments/assets/05b24ee1-30bb-44d4-9134-61cfcd52f4e7" />
 
